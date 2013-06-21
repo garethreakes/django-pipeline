@@ -1,10 +1,6 @@
 from __future__ import unicode_literals
 
-import multiprocessing
 import os
-import subprocess
-
-from concurrent import futures
 
 from django.contrib.staticfiles import finders
 from django.core.files.base import ContentFile
@@ -26,7 +22,8 @@ class Compiler(object):
         return [to_class(compiler) for compiler in settings.PIPELINE_COMPILERS]
 
     def compile(self, paths, force=False):
-        def _compile(input_path):
+        l = list()
+        for input_path in paths:
             for compiler in self.compilers:
                 compiler = compiler(verbose=self.verbose, storage=self.storage)
                 if compiler.match_file(input_path):
@@ -43,11 +40,11 @@ class Compiler(object):
                     except CompilerError:
                         if not self.storage.exists(output_path) or settings.DEBUG:
                             raise
-                    return output_path
+                    l.append(output_path)
             else:
-                return input_path
-        with futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-            return list(executor.map(_compile, paths))
+                l.append(input_path)
+
+        return l
 
     def output_path(self, path, extension):
         path = os.path.splitext(path)
